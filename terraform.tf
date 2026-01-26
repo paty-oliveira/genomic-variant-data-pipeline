@@ -7,19 +7,18 @@ terraform {
   }
 }
 
-
 provider "aws" {
   access_key = var.aws_access_key
   secret_key = var.aws_secret_key
   region     = var.aws_region
 
-  skip_credentials_validation = true
-  skip_requesting_account_id  = true
-  skip_region_validation      = true
-  skip_metadata_api_check     = true
-  s3_use_path_style           = true
+  skip_credentials_validation = local.skip_validation
+  skip_requesting_account_id  = local.skip_validation
+  skip_region_validation      = local.skip_validation
+  skip_metadata_api_check     = local.skip_validation
+  s3_use_path_style           = local.skip_validation
 
   endpoints {
-    s3 = "http://localhost:4566"
+    s3 = var.aws_endpoint_url
   }
 }
