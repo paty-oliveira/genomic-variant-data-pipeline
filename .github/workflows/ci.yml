@@ -3,7 +3,11 @@ name: Continuous Integration Workflow
 on: [push]
 
 env:
-  example: ${{ vars.ENV_CONTEXT_VAR }}
+  TF_AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+  TF_AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+  TF_AWS_REGION: ${{ secrets.AWS_REGION }}
+  TF_AWS_ENDPOINT_URL: ${{ vars.AWS_ENDPOINT_URL }}
+  TF_ENVIRONMENT: ${{ vars.ENVIRONMENT }}
 
 jobs:
   build-and-test-infrastructure:
@@ -13,33 +17,29 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: test environment
+      - name: Build and Start LocalStack Container
         run: |
-          echo ${{ env.example}}
+          docker compose up -d
 
-      # - name: Build and Start LocalStack Container
-      #   run: |
-      #     docker compose up -d
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: latest
 
-      # - name: Setup Terraform
-      #   uses: hashicorp/setup-terraform@v3
-      #   with:
-      #     terraform_version: latest
+      - name: Terraform Init and Validation
+        run: |
+          terraform init -input=false
+          terraform validate
+          terraform fmt -check
 
-      # - name: Terraform Init and Validation
-      #   run: |
-      #     terraform init -input=false
-      #     terraform validate
-      #     terraform fmt -check
+      - name: Terraform Plan
+        run: |
+          terraform plan -no-color -input=false
+        continue-on-error: true
 
-      # - name: Terraform Plan
-      #   run: |
-      #     terraform plan -no-color -input=false
-      #   continue-on-error: true
-
-      # - name: Terraform Apply
-      #   run: |
-      #     terraform apply -auto-approve
+      - name: Terraform Apply
+        run: |
+          terraform apply -auto-approve
 
   deploy-infrastructure:
     runs-on: ubuntu-latest
@@ -49,7 +49,3 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-
-      - name: test environment
-        run: |
-          echo ${{ env.example}}
