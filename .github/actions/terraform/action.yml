@@ -1,0 +1,27 @@
+name: Terraform Action
+description: Setup and Build Terraform Action
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: latest
+
+    - name: Terraform Init and Validation
+      run: |
+        terraform init -input=false
+        terraform validate
+        terraform fmt -check
+      shell: bash
+
+    - name: Terraform Plan
+      run: |
+        terraform plan -no-color -input=false
+      shell: bash
+
+    - name: Terraform Apply
+      run: |
+        terraform apply -auto-approve
+      shell: bash
