@@ -1,6 +1,11 @@
 name: Terraform Action
 description: Setup and Build Terraform Action
 
+inputs:
+  backend_config:
+    description: "Backend S3 configuration"
+    required: false
+
 runs:
   using: "composite"
   steps:
@@ -11,7 +16,7 @@ runs:
 
     - name: Terraform Init and Validation
       run: |
-        terraform init -input=false
+        terraform init -input=false -backend-config=${{ inputs.backend_config }}
         terraform validate
         terraform fmt -check
       shell: bash
