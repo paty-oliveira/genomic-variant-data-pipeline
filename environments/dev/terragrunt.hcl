@@ -9,4 +9,5 @@ inputs = {
   aws_region                          = "eu-central-1"
   aws_endpoint_url                    = "http://localhost:4566"
   aws_ignore_configured_endpoint_urls = false
+  aws_skip_validation                 = true
 }

@@ -18,5 +18,6 @@ EOF
 }
 
 inputs = {
-  environment = "prod"
+  environment         = "prod"
+  aws_skip_validation = false
 }

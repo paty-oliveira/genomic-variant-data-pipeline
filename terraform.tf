@@ -12,11 +12,11 @@ provider "aws" {
   secret_key = var.aws_secret_key
   region     = var.aws_region
 
-  skip_credentials_validation = local.skip_validation
-  skip_requesting_account_id  = local.skip_validation
-  skip_region_validation      = local.skip_validation
-  skip_metadata_api_check     = local.skip_validation
-  s3_use_path_style           = local.skip_validation
+  skip_credentials_validation = var.aws_skip_validation
+  skip_requesting_account_id  = var.aws_skip_validation
+  skip_region_validation      = var.aws_skip_validation
+  skip_metadata_api_check     = var.aws_skip_validation
+  s3_use_path_style           = var.aws_skip_validation
 
   endpoints {
     s3 = var.aws_endpoint_url
