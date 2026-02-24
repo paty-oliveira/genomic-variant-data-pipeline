@@ -29,7 +29,3 @@ variable "aws_ignore_configured_endpoint_urls" {
   default     = true
 }
 
-variable "s3_bucket_name" {
-  default = "my-test-bucket"
-}
-

@@ -2,8 +2,8 @@ name: Terraform Action
 description: Setup and Build Terraform Action
 
 inputs:
-  backend_config:
-    description: "Backend S3 configuration"
+  tf_api_token:
+    description: "HCP API Token"
     required: false
 
 runs:
@@ -13,10 +13,11 @@ runs:
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: latest
+        cli_config_credentials_token: ${{ inputs.tf_api_token }}
 
     - name: Terraform Init and Validation
       run: |
-        terraform init -input=false -backend-config=${{ inputs.backend_config }}
+        terraform init -input=false
         terraform validate
         terraform fmt -check
       shell: bash

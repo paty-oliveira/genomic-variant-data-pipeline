@@ -21,18 +21,8 @@ jobs:
         run: |
           docker compose up -d
 
-      - name: Backend S3 State Setup
-        env:
-          AWS_ACCESS_KEY_ID: ${{ env.TF_VAR_aws_access_key }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.TF_VAR_aws_secret_key }}
-          AWS_DEFAULT_REGION: ${{ env.TF_VAR_aws_region }}
-        run: |
-          aws --endpoint-url=${{ env.TF_VAR_aws_endpoint_url}} s3 mb s3://dev-terraform-state
-
       - name: Terraform Setup and Build
         uses: ./.github/actions/terraform
-        with:
-          backend_config: backend.dev.hcl
 
       - name: Stop and Delete LocalStack Container
         if: always()
@@ -42,10 +32,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-test-infrastructure
     environment: PROD
-    if: false
 
     steps:
       - uses: actions/checkout@v5
 
+      - name: Create HCP Cloud backend config
+        run: echo "${{ vars.TF_CLOUD_CONFIGURATION }}" > cloud.tf
+        shell: bash
+
       - name: Terraform Setup and Build
         uses: ./.github/actions/terraform
+        with:
+          tf_api_token: ${{ secrets.TF_TOKEN }}

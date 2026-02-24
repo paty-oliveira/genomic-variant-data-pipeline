@@ -214,6 +214,9 @@ volume/*
 # Local .terraform directories
 .terraform/
 
+# HCP Cloud backend config (generated in CI for PROD, not committed)
+cloud.tf
+
 # .tfstate files
 *.tfstate
 *.tfstate.*
