@@ -1,2 +1,2 @@
 [tools]
-terragrunt = "0.82.3"
+terragrunt = "0.99.4"
