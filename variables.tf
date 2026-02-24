@@ -28,4 +28,3 @@ variable "aws_ignore_configured_endpoint_urls" {
   type        = bool
   default     = true
 }
-

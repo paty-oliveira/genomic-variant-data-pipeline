@@ -23,6 +23,8 @@ jobs:
 
       - name: Terraform Setup and Build
         uses: ./.github/actions/terraform
+        with:
+          working_directory: environments/dev
 
       - name: Stop and Delete LocalStack Container
         if: always()
@@ -36,11 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Create HCP Cloud backend config
-        run: echo "${{ vars.TF_CLOUD_CONFIGURATION }}" > cloud.tf
-        shell: bash
-
       - name: Terraform Setup and Build
         uses: ./.github/actions/terraform
         with:
+          working_directory: environments/prod
           tf_api_token: ${{ secrets.TF_TOKEN }}
