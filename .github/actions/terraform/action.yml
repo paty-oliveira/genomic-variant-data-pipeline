@@ -1,4 +1,4 @@
-name: Terraform Action
+name: Terraform & Terragrunt Action
 description: Setup and Build Terraform Action
 
 inputs:
@@ -17,17 +17,11 @@ runs:
       with:
         terraform_version: latest
         cli_config_credentials_token: ${{ inputs.tf_api_token }}
-
+        
     - name: Setup Terragrunt
-      run: |
-        LATEST=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest \
-          | grep tag_name | cut -d '"' -f4)
-        wget -q https://github.com/gruntwork-io/terragrunt/releases/download/${LATEST}/terragrunt_linux_amd64
-        chmod +x terragrunt_linux_amd64
-        sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
-      shell: bash
+      uses: gruntwork-io/terragrunt-action@v3
 
-    - name: Terraform Init and Validation
+    - name: Infrastructure Initialization and Validation
       working-directory: ${{ inputs.working_directory }}
       run: |
         terragrunt init -input=false
@@ -35,13 +29,13 @@ runs:
         terragrunt hcl format --check
       shell: bash
 
-    - name: Terraform Plan
+    - name: Infrastructure Plan
       working-directory: ${{ inputs.working_directory }}
       run: |
         terragrunt plan -no-color -input=false
       shell: bash
 
-    - name: Terraform Apply
+    - name: Infrastructure Apply
       working-directory: ${{ inputs.working_directory }}
       run: |
         terragrunt apply -auto-approve
