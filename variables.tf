@@ -23,14 +23,8 @@ variable "aws_endpoint_url" {
   type        = string
 }
 
-variable "aws_ignore_configured_endpoint_urls" {
-  description = "Flag about AWS endopoint urls"
-  type        = bool
-  default     = true
-}
-
 variable "aws_skip_validation" {
   description = "Flag about skiping AWS validation"
-  type    = bool
-  default = true
+  type        = bool
+  default     = true
 }

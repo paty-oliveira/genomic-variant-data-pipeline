@@ -17,7 +17,7 @@ runs:
       with:
         terraform_version: latest
         cli_config_credentials_token: ${{ inputs.tf_api_token }}
-        
+
     - name: Setup Terragrunt
       uses: gruntwork-io/terragrunt-action@v3
 
