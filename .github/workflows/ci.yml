@@ -26,6 +26,19 @@ jobs:
         with:
           working_directory: environments/dev
 
+      - name: Infrastructure Testing
+        run: |
+          find . -name "*.tftest.hcl" \
+            -not -path "*/.terragrunt-cache/*" \
+            -not -path "*/.terraform/*" \
+            | xargs -I{} dirname {} \
+            | sort -u \
+            | while read dir; do
+                echo "==> Running terraform test in $dir"
+                terraform -chdir="$dir" init -backend=false
+                terraform -chdir="$dir" test
+              done
+
       - name: Stop and Delete LocalStack Container
         if: always()
         run: docker compose down
