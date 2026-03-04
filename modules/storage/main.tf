@@ -9,10 +9,29 @@ terraform {
   }
 }
 
-resource "aws_s3_bucket" "raw_bucket" {
-  # checkov:skip=CKV2_AWS_62: "Ensure S3 buckets should have event notifications enabled"
-  # checkov:skip=CKV_AWS_18: "Ensure the S3 bucket has access logging enabled"
-  # checkov:skip=CKV_AWS_144: "Ensure that S3 bucket has cross-region replication enabled"
-  # checkov:skip=CKV_AWS_145: "Ensure that S3 buckets are encrypted with KMS by default"
-  bucket = "${var.environment}-genomic-raw"
+resource "aws_s3_bucket" "this" {
+  for_each = var.bucket_names
+
+  bucket = "${var.environment}-${each.key}"
+}
+
+resource "aws_s3_bucket_versioning" "this" {
+  for_each = var.buckets_versioned
+
+  bucket = aws_s3_bucket.this[each.key].id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "this" {
+  for_each = var.bucket_names
+
+  bucket = aws_s3_bucket.this[each.key].id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
