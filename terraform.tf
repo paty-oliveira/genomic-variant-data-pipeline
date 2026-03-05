@@ -21,6 +21,11 @@ provider "aws" {
   s3_use_path_style           = var.aws_skip_validation
 
   endpoints {
-    s3 = var.aws_endpoint_url
+    s3             = var.aws_endpoint_url
+    iam            = var.aws_endpoint_url
+    kms            = var.aws_endpoint_url
+    lambda         = var.aws_endpoint_url
+    cloudwatchlogs = var.aws_endpoint_url
+    scheduler      = var.aws_endpoint_url
   }
 }

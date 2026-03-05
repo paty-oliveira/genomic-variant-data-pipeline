@@ -8,8 +8,14 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "pre-commit (>=4.5.1,<5.0.0)"
+    "pre-commit (>=4.5.1,<5.0.0)",
+    "boto3 (>=1.38.0,<2.0.0)",
 ]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0.0,<9.0.0"
+pytest-mock = ">=3.14.0,<4.0.0"
+moto = {version = ">=5.0.0,<6.0.0", extras = ["s3"]}
 
 [tool.poetry]
 package-mode = false
