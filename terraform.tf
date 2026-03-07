@@ -27,5 +27,6 @@ provider "aws" {
     lambda         = var.aws_endpoint_url
     cloudwatchlogs = var.aws_endpoint_url
     scheduler      = var.aws_endpoint_url
+    sts            = var.aws_endpoint_url
   }
 }
