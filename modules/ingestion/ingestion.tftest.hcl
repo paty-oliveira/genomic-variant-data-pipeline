@@ -45,6 +45,54 @@ run "valid_lambda_s3_policy" {
   }
 }
 
+run "valid_kms_key_for_log_group" {
+  command = plan
+
+  assert {
+    condition     = aws_kms_key.log_group.enable_key_rotation == true
+    error_message = "KMS key for log group must have key rotation enabled"
+  }
+
+  assert {
+    condition     = aws_kms_key.log_group.deletion_window_in_days == 7
+    error_message = "KMS key deletion window must be 7 days"
+  }
+
+  assert {
+    condition     = strcontains(aws_kms_key.log_group.policy, "logs.")
+    error_message = "KMS key policy must grant access to the CloudWatch Logs service principal"
+  }
+
+  assert {
+    condition     = strcontains(aws_kms_key.log_group.policy, "kms:GenerateDataKey*")
+    error_message = "KMS key policy must allow kms:GenerateDataKey* for CloudWatch Logs"
+  }
+
+  assert {
+    condition     = strcontains(aws_kms_key.log_group.policy, "kms:EncryptionContext:aws:logs:arn")
+    error_message = "KMS key policy must scope CloudWatch Logs access via EncryptionContext condition"
+  }
+}
+
+run "valid_cloudwatch_log_group" {
+  command = apply
+
+  assert {
+    condition     = aws_cloudwatch_log_group.this.name == "/aws/lambda/development-ingestion-service"
+    error_message = "Log group name must follow /aws/lambda/{environment}-ingestion-service convention"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_group.this.retention_in_days == 365
+    error_message = "Log group retention must be 365 days"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_group.this.kms_key_id == aws_kms_key.log_group.arn
+    error_message = "Log group must be encrypted with the ingestion KMS key"
+  }
+}
+
 
 # run "valid_lambda_function" {
 #   command = plan
