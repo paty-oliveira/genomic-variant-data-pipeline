@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 from modules.ingestion.src.handler import FTP_HOST, FTP_PATH, lambda_handler
@@ -127,3 +128,58 @@ class TestS3Upload:
         objects = s3_bucket.list_objects_v2(Bucket="test-clinvar-raw")
 
         assert "Contents" not in objects
+
+
+@pytest.mark.usefixtures("frozen_date")
+class TestIdempotency:
+    def test_skips_ftp_download_if_file_already_exists_in_s3(self, ftp_mock, s3_bucket):
+        # If the S3 key for the current month already exists, the handler must not download
+        # from FTP again. S3 is the source of truth for what has already been ingested.
+        s3_bucket.put_object(
+            Bucket="test-clinvar-raw",
+            Key="clinvar/monthly/ClinVarVCVRelease_2026-03.xml.gz",
+            Body=b"existing content",
+        )
+
+        lambda_handler({}, {})
+
+        ftp_mock.retrbinary.assert_not_called()
+
+    def test_skips_s3_upload_if_file_already_exists_in_s3(self, ftp_mock, s3_bucket):
+        # If the file already exists in S3, no new object should be written —
+        # the existing object must remain untouched.
+        s3_bucket.put_object(
+            Bucket="test-clinvar-raw",
+            Key="clinvar/monthly/ClinVarVCVRelease_2026-03.xml.gz",
+            Body=b"existing content",
+        )
+
+        lambda_handler({}, {})
+
+        response = s3_bucket.get_object(
+            Bucket="test-clinvar-raw",
+            Key="clinvar/monthly/ClinVarVCVRelease_2026-03.xml.gz",
+        )
+        assert response["Body"].read() == b"existing content"
+
+    def test_proceeds_with_download_if_file_not_in_s3(self, ftp_mock, s3_bucket):
+        # If the S3 HeadObject check raises a 404, the handler should proceed
+        # with the FTP download and upload the file.
+        objects = s3_bucket.list_objects_v2(Bucket="test-clinvar-raw")
+        assert "Contents" not in objects  # bucket is empty
+
+        lambda_handler({}, {})
+
+        ftp_mock.retrbinary.assert_called_once()
+
+    def test_does_not_skip_when_a_different_month_file_exists(self, ftp_mock, s3_bucket):
+        # A file from a previous month in S3 must not prevent the current month's download.
+        s3_bucket.put_object(
+            Bucket="test-clinvar-raw",
+            Key="clinvar/monthly/ClinVarVCVRelease_2026-02.xml.gz",
+            Body=b"previous month",
+        )
+
+        lambda_handler({}, {})
+
+        ftp_mock.retrbinary.assert_called_once()
