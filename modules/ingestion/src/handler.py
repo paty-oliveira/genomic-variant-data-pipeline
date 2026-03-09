@@ -10,8 +10,8 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-FTP_HOST = os.getenv("FTP_HOST", "ftp.ncbi.nlm.nih.gov")
-FTP_PATH = os.getenv("FTP_PATH", "/pub/clinvar/xml/")
+FTP_HOST = os.environ["FTP_HOST"]
+FTP_PATH = os.environ["FTP_PATH"]
 
 
 def lambda_handler(event, context):
@@ -19,10 +19,10 @@ def lambda_handler(event, context):
     year = current_date.strftime("%Y")
     month = current_date.strftime("%m")
     current_month_file = f"ClinVarVCVRelease_{year}-{month}.xml.gz"
-    s3_key = f"clinvar/monthly/{current_month_file}"
 
     s3_client = boto3.client("s3")
     target_bucket = os.environ["TARGET_BUCKET"]
+    s3_key = f"{FTP_PATH}{current_month_file}".lstrip("/")
 
     try:
         s3_client.head_object(Bucket=target_bucket, Key=s3_key)
@@ -52,7 +52,7 @@ def lambda_handler(event, context):
     try:
         buffer.seek(0)
         s3_client.upload_fileobj(buffer, target_bucket, s3_key)
-        logger.info("Uploaded %s to s3://%s/%s", current_month_file, target_bucket, s3_key)
+        logger.info("Uploaded %s to %s", current_month_file, s3_key)
     except boto3.exceptions.S3UploadFailedError as e:
         logger.error("S3 upload failed for %s: %s", s3_key, e)
         raise

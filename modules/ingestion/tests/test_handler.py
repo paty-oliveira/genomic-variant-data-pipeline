@@ -96,7 +96,7 @@ class TestS3Upload:
         objects = s3_bucket.list_objects_v2(Bucket="test-clinvar-raw")
         uploaded_keys = [obj["Key"] for obj in objects.get("Contents", [])]
 
-        assert "clinvar/monthly/ClinVarVCVRelease_2026-03.xml.gz" in uploaded_keys
+        assert f"{FTP_PATH}ClinVarVCVRelease_2026-03.xml.gz".lstrip("/") in uploaded_keys
 
     def test_skips_files_from_previous_months(self, s3_bucket):
         # Releases from earlier months should not be uploaded to S3.
@@ -107,14 +107,14 @@ class TestS3Upload:
 
         assert not any("2026-01" in key or "2026-02" in key for key in uploaded_keys)
 
-    def test_s3_key_uses_clinvar_monthly_prefix(self, s3_bucket):
-        # All uploaded S3 keys should be stored under the clinvar/monthly/ prefix.
+    def test_uploaded_file_mirrors_ftp_path(self, s3_bucket):
+        # S3 keys should mirror the FTP server path structure.
         lambda_handler({}, {})
 
         objects = s3_bucket.list_objects_v2(Bucket="test-clinvar-raw")
         uploaded_keys = [obj["Key"] for obj in objects.get("Contents", [])]
 
-        assert all(key.startswith("clinvar/monthly/") for key in uploaded_keys)
+        assert all(key.startswith(FTP_PATH.lstrip("/")) for key in uploaded_keys)
 
     def test_no_upload_when_no_file_for_current_month(self, ftp_mock, s3_bucket):
         # If the FTP listing contains no release for the current month, nothing should be uploaded.
@@ -137,7 +137,7 @@ class TestIdempotency:
         # from FTP again. S3 is the source of truth for what has already been ingested.
         s3_bucket.put_object(
             Bucket="test-clinvar-raw",
-            Key="clinvar/monthly/ClinVarVCVRelease_2026-03.xml.gz",
+            Key=f"{FTP_PATH}ClinVarVCVRelease_2026-03.xml.gz".lstrip("/"),
             Body=b"existing content",
         )
 
@@ -150,7 +150,7 @@ class TestIdempotency:
         # the existing object must remain untouched.
         s3_bucket.put_object(
             Bucket="test-clinvar-raw",
-            Key="clinvar/monthly/ClinVarVCVRelease_2026-03.xml.gz",
+            Key=f"{FTP_PATH}ClinVarVCVRelease_2026-03.xml.gz".lstrip("/"),
             Body=b"existing content",
         )
 
@@ -158,7 +158,7 @@ class TestIdempotency:
 
         response = s3_bucket.get_object(
             Bucket="test-clinvar-raw",
-            Key="clinvar/monthly/ClinVarVCVRelease_2026-03.xml.gz",
+            Key=f"{FTP_PATH}ClinVarVCVRelease_2026-03.xml.gz".lstrip("/"),
         )
         assert response["Body"].read() == b"existing content"
 
@@ -176,7 +176,7 @@ class TestIdempotency:
         # A file from a previous month in S3 must not prevent the current month's download.
         s3_bucket.put_object(
             Bucket="test-clinvar-raw",
-            Key="clinvar/monthly/ClinVarVCVRelease_2026-02.xml.gz",
+            Key=f"{FTP_PATH}ClinVarVCVRelease_2026-02.xml.gz".lstrip("/"),
             Body=b"previous month",
         )
 

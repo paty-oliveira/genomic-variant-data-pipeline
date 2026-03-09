@@ -9,4 +9,6 @@ module "ingestion" {
   source        = "./modules/ingestion"
   environment   = var.environment
   target_bucket = "${var.environment}-clinvar-raw"
+  ftp_host      = "ftp.ncbi.nlm.nih.gov"
+  ftp_path      = "/pub/clinvar/xml/"
 }

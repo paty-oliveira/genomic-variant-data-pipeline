@@ -28,5 +28,7 @@ provider "aws" {
     cloudwatchlogs = var.aws_endpoint_url
     scheduler      = var.aws_endpoint_url
     sts            = var.aws_endpoint_url
+    sqs            = var.aws_endpoint_url
+    signer         = var.aws_endpoint_url
   }
 }
