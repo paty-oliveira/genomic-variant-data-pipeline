@@ -185,7 +185,7 @@ resource "aws_iam_role_policy" "scheduler_to_lambda" {
 
 resource "aws_scheduler_schedule" "this" {
   #checkov:skip=CKV_AWS_297:Not required for this kind of experimentation
-  schedule_expression = "cron(0 0 ? * 6#1 *)"
+  schedule_expression = "cron(0 0 ? * 5#2 *)"
   flexible_time_window {
     mode = "OFF"
   }

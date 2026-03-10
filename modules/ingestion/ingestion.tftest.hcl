@@ -229,8 +229,8 @@ run "valid_scheduler_expression" {
   command = plan
 
   assert {
-    condition     = aws_scheduler_schedule.this.schedule_expression == "cron(0 0 ? * 6#1 *)"
-    error_message = "Schedule expression must be cron(0 0 ? * 6#1 *) to trigger on the first Friday of every month"
+    condition     = aws_scheduler_schedule.this.schedule_expression == "cron(0 0 ? * 5#2 *)"
+    error_message = "Schedule expression must be cron(0 0 ? * 5#2 *) to trigger on the second Thursday of every month"
   }
 
   assert {
