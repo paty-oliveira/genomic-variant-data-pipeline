@@ -21,5 +21,5 @@ variable "ftp_path" {
 variable "reserved_concurrent_executions" {
   description = "Maximum number of concurrent executions for the Lambda function"
   type        = number
-  default     = 10
+  default     = 1
 }
