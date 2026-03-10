@@ -18,6 +18,7 @@ provider "aws" {
     cloudwatchlogs = "http://localhost:4566"
     scheduler      = "http://localhost:4566"
     sts            = "http://localhost:4566"
+    sqs            = "http://localhost:4566"
   }
 }
 
@@ -102,6 +103,48 @@ run "valid_kms_key_for_log_group" {
 
 run "valid_cloudwatch_log_group" {
   command = apply
+
+  override_resource {
+    target = aws_iam_role.lambda_execution_role
+    values = {
+      id   = "ingestion-service"
+      arn  = "arn:aws:iam::000000000000:role/ingestion-service"
+      name = "ingestion-service"
+    }
+  }
+
+  override_resource {
+    target = aws_iam_role_policy_attachment.lambda_policy
+    values = {}
+  }
+
+  override_resource {
+    target = aws_iam_role_policy.lambda_to_s3
+    values = {
+      id = "ingestion-service:lambda_to_s3"
+    }
+  }
+
+  override_resource {
+    target = aws_iam_role_policy.lambda_to_dlq
+    values = {
+      id = "ingestion-service:lambda_to_dlq"
+    }
+  }
+
+  override_resource {
+    target = aws_sqs_queue.dlq
+    values = {
+      arn = "arn:aws:sqs:eu-central-1:000000000000:development-ingestion-service-dlq"
+    }
+  }
+
+  override_resource {
+    target = aws_lambda_function.this
+    values = {
+      arn = "arn:aws:lambda:eu-central-1:000000000000:function:development-ingestion-service"
+    }
+  }
 
   assert {
     condition     = aws_cloudwatch_log_group.this.name == "/aws/lambda/development-ingestion-service"

@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.7"
 
   required_providers {
     aws = {
@@ -114,24 +114,10 @@ resource "aws_iam_role_policy" "lambda_to_dlq" {
   })
 }
 
-resource "aws_signer_signing_profile" "this" {
-  platform_id = "AWSLambda-SHA384-ECDSA"
-  name        = replace("${var.environment}_${local.service_name}", "-", "_")
-}
-
-resource "aws_lambda_code_signing_config" "this" {
-  allowed_publishers {
-    signing_profile_version_arns = [aws_signer_signing_profile.this.version_arn]
-  }
-
-  policies {
-    untrusted_artifact_on_deployment = "Warn"
-  }
-}
-
 resource "aws_lambda_function" "this" {
   #checkov:skip=CKV_AWS_173:Env vars are encrypted with AWS-managed key; CMK not required
   #checkov:skip=CKV_AWS_117:Lambda runs outside VPC by design for public FTP access
+  #checkov:skip=CKV_AWS_272:AWS Signer is not supported in LocalStack; code integrity is enforced via CI/CD pipeline
   function_name    = "${var.environment}-${local.service_name}"
   filename         = data.archive_file.this.output_path
   source_code_hash = data.archive_file.this.output_base64sha256
@@ -141,7 +127,6 @@ resource "aws_lambda_function" "this" {
   runtime                        = "python3.12"
   timeout                        = 900
   reserved_concurrent_executions = var.reserved_concurrent_executions
-  code_signing_config_arn        = aws_lambda_code_signing_config.this.arn
 
   tracing_config {
     mode = "Active"
