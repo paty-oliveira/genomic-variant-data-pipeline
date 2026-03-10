@@ -17,9 +17,3 @@ variable "ftp_path" {
   description = "FTP folder path"
   type        = string
 }
-
-variable "reserved_concurrent_executions" {
-  description = "Maximum number of concurrent executions for the Lambda function"
-  type        = number
-  default     = 1
-}

@@ -67,7 +67,7 @@ run "valid_lambda_s3_policy" {
   }
 
   assert {
-    condition     = strcontains(aws_iam_role_policy.lambda_to_s3.policy, "development-clinvar-raw")
+    condition     = strcontains(aws_iam_role_policy.lambda_to_s3.policy, "${var.environment}-clinvar-raw")
     error_message = "Lambda IAM policy must scope s3:PutObject to the target bucket"
   }
 }
@@ -146,6 +146,29 @@ run "valid_cloudwatch_log_group" {
     }
   }
 
+  override_resource {
+    target = aws_iam_role.scheduler_execution_role
+    values = {
+      id   = "ingestion-service-scheduler"
+      arn  = "arn:aws:iam::000000000000:role/ingestion-service-scheduler"
+      name = "ingestion-service-scheduler"
+    }
+  }
+
+  override_resource {
+    target = aws_iam_role_policy.scheduler_to_lambda
+    values = {
+      id = "ingestion-service-scheduler:scheduler_to_lambda"
+    }
+  }
+
+  override_resource {
+    target = aws_scheduler_schedule.this
+    values = {
+      id = "default/ingestion-service"
+    }
+  }
+
   assert {
     condition     = aws_cloudwatch_log_group.this.name == "/aws/lambda/development-ingestion-service"
     error_message = "Log group name must follow /aws/lambda/{environment}-ingestion-service convention"
@@ -167,7 +190,7 @@ run "valid_lambda_function" {
   command = plan
 
   assert {
-    condition     = aws_lambda_function.this.function_name == "development-ingestion-service"
+    condition     = aws_lambda_function.this.function_name == "${var.environment}-ingestion-service"
     error_message = "Lambda function name must follow {environment}-ingestion-service convention"
   }
 
@@ -182,17 +205,17 @@ run "valid_lambda_function" {
   }
 
   assert {
-    condition     = aws_lambda_function.this.environment[0].variables["TARGET_BUCKET"] == "development-clinvar-raw"
+    condition     = aws_lambda_function.this.environment[0].variables["TARGET_BUCKET"] == "${var.environment}-clinvar-raw"
     error_message = "Lambda must receive TARGET_BUCKET environment variable"
   }
 
   assert {
-    condition     = aws_lambda_function.this.environment[0].variables["FTP_HOST"] == "ftp.ncbi.nlm.nih.gov"
+    condition     = aws_lambda_function.this.environment[0].variables["FTP_HOST"] == "${var.ftp_host}"
     error_message = "Lambda must receive FTP_HOST environment variable"
   }
 
   assert {
-    condition     = aws_lambda_function.this.environment[0].variables["FTP_PATH"] == "/pub/clinvar/xml/"
+    condition     = aws_lambda_function.this.environment[0].variables["FTP_PATH"] == "${var.ftp_path}"
     error_message = "Lambda must receive FTP_PATH environment variable"
   }
 
@@ -202,20 +225,127 @@ run "valid_lambda_function" {
   }
 }
 
-# run "valid_schedule_expression" {
-#   command = plan
+run "valid_scheduler_expression" {
+  command = plan
 
-#   assert {
-#     condition     = aws_cloudwatch_event_rule.this.schedule_expression == "rate(7 days)"
-#     error_message = "EventBridge schedule expression does not match expected"
-#   }
-# }
+  assert {
+    condition     = aws_scheduler_schedule.this.schedule_expression == "cron(0 0 ? * 6#1 *)"
+    error_message = "Schedule expression must be cron(0 0 ? * 6#1 *) to trigger on the first Friday of every month"
+  }
 
-# run "valid_lambda_permission_principal" {
-#   command = plan
+  assert {
+    condition     = aws_scheduler_schedule.this.flexible_time_window[0].mode == "OFF"
+    error_message = "Flexible time window must be OFF to ensure the schedule fires at the exact cron time"
+  }
+}
 
-#   assert {
-#     condition     = aws_lambda_permission.eventbridge.principal == "events.amazonaws.com"
-#     error_message = "Lambda permission must allow EventBridge (events.amazonaws.com) to invoke the function"
-#   }
-# }
+run "valid_scheduler_target" {
+  command = apply
+
+  override_resource {
+    target = aws_iam_role.lambda_execution_role
+    values = {
+      id   = "ingestion-service"
+      arn  = "arn:aws:iam::000000000000:role/ingestion-service"
+      name = "ingestion-service"
+    }
+  }
+
+  override_resource {
+    target = aws_iam_role_policy_attachment.lambda_policy
+    values = {}
+  }
+
+  override_resource {
+    target = aws_iam_role_policy.lambda_to_s3
+    values = {
+      id = "ingestion-service:lambda_to_s3"
+    }
+  }
+
+  override_resource {
+    target = aws_iam_role_policy.lambda_to_dlq
+    values = {
+      id = "ingestion-service:lambda_to_dlq"
+    }
+  }
+
+  override_resource {
+    target = aws_sqs_queue.dlq
+    values = {
+      arn = "arn:aws:sqs:eu-central-1:000000000000:development-ingestion-service-dlq"
+    }
+  }
+
+  override_resource {
+    target = aws_kms_key.log_group
+    values = {
+      id  = "00000000-0000-0000-0000-000000000000"
+      arn = "arn:aws:kms:eu-central-1:000000000000:key/00000000-0000-0000-0000-000000000000"
+    }
+  }
+
+  override_resource {
+    target = aws_cloudwatch_log_group.this
+    values = {}
+  }
+
+  override_resource {
+    target = aws_lambda_function.this
+    values = {
+      arn = "arn:aws:lambda:eu-central-1:000000000000:function:development-ingestion-service"
+    }
+  }
+
+  override_resource {
+    target = aws_iam_role.scheduler_execution_role
+    values = {
+      id   = "ingestion-service-scheduler"
+      arn  = "arn:aws:iam::000000000000:role/ingestion-service-scheduler"
+      name = "ingestion-service-scheduler"
+    }
+  }
+
+  override_resource {
+    target = aws_iam_role_policy.scheduler_to_lambda
+    values = {
+      id = "ingestion-service-scheduler:scheduler_to_lambda"
+    }
+  }
+
+  assert {
+    condition     = aws_scheduler_schedule.this.target[0].arn == "arn:aws:lambda:eu-central-1:000000000000:function:development-ingestion-service"
+    error_message = "EventBridge Scheduler target must be the ingestion Lambda function"
+  }
+
+  assert {
+    condition     = aws_scheduler_schedule.this.target[0].role_arn == "arn:aws:iam::000000000000:role/ingestion-service-scheduler"
+    error_message = "EventBridge Scheduler target must use the scheduler execution role"
+  }
+}
+
+run "valid_scheduler_role" {
+  command = plan
+
+  override_resource {
+    target = aws_lambda_function.this
+    values = {
+      arn = "arn:aws:lambda:eu-central-1:000000000000:function:development-ingestion-service"
+    }
+  }
+
+  assert {
+    condition     = jsondecode(aws_iam_role.scheduler_execution_role.assume_role_policy).Statement[0].Principal.Service == "scheduler.amazonaws.com"
+    error_message = "Scheduler IAM role must trust scheduler.amazonaws.com"
+  }
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.scheduler_to_lambda.policy, "lambda:InvokeFunction")
+    error_message = "Scheduler IAM policy must grant lambda:InvokeFunction"
+  }
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.scheduler_to_lambda.policy, "${var.environment}-ingestion-service")
+    error_message = "Scheduler IAM policy must scope lambda:InvokeFunction to the ingestion Lambda function"
+  }
+}

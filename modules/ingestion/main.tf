@@ -118,15 +118,15 @@ resource "aws_lambda_function" "this" {
   #checkov:skip=CKV_AWS_173:Env vars are encrypted with AWS-managed key; CMK not required
   #checkov:skip=CKV_AWS_117:Lambda runs outside VPC by design for public FTP access
   #checkov:skip=CKV_AWS_272:AWS Signer is not supported in LocalStack; code integrity is enforced via CI/CD pipeline
+  #checkov:skip=CKV_AWS_115:Concurrency limit not required for a scheduled monthly ingestion function
   function_name    = "${var.environment}-${local.service_name}"
   filename         = data.archive_file.this.output_path
   source_code_hash = data.archive_file.this.output_base64sha256
   role             = aws_iam_role.lambda_execution_role.arn
   handler          = "handler.lambda_handler"
 
-  runtime                        = "python3.12"
-  timeout                        = 900
-  reserved_concurrent_executions = var.reserved_concurrent_executions
+  runtime = "python3.12"
+  timeout = 900
 
   tracing_config {
     mode = "Active"
@@ -149,4 +149,49 @@ resource "aws_lambda_function" "this" {
   }
 
   depends_on = [aws_cloudwatch_log_group.this]
+}
+
+resource "aws_iam_role" "scheduler_execution_role" {
+  name = "${local.service_name}-scheduler"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Sid    = ""
+      Principal = {
+        Service = "scheduler.amazonaws.com"
+      }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "scheduler_to_lambda" {
+  role = aws_iam_role.scheduler_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["lambda:InvokeFunction"]
+      Resource = aws_lambda_function.this.arn
+    }]
+  })
+}
+
+
+
+resource "aws_scheduler_schedule" "this" {
+  #checkov:skip=CKV_AWS_297:Not required for this kind of experimentation
+  schedule_expression = "cron(0 0 ? * 6#1 *)"
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_lambda_function.this.arn
+    role_arn = aws_iam_role.scheduler_execution_role.arn
+  }
 }
