@@ -1,8 +1,9 @@
 module "storage" {
-  source            = "./modules/storage"
-  environment       = var.environment
-  bucket_names      = toset(["clinvar-raw", "clinvar-transformed", "clinvar-athena-results", "clinvar-glue-scripts"])
-  buckets_versioned = toset(["clinvar-raw"])
+  source                      = "./modules/storage"
+  environment                 = var.environment
+  bucket_names                = toset(["clinvar-raw", "clinvar-transformed", "clinvar-athena-results", "clinvar-glue-scripts"])
+  buckets_versioned           = toset(["clinvar-raw"])
+  buckets_eventbridge_enabled = toset(["clinvar-raw"])
 }
 
 module "ingestion" {
@@ -11,4 +12,10 @@ module "ingestion" {
   target_bucket = "${var.environment}-clinvar-raw"
   ftp_host      = "ftp.ncbi.nlm.nih.gov"
   ftp_path      = "/pub/clinvar/xml/"
+}
+
+module "processing" {
+  source      = "./modules/processing"
+  environment = var.environment
+  raw_bucket  = "${var.environment}-clinvar-raw"
 }

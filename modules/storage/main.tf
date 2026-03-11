@@ -35,3 +35,10 @@ resource "aws_s3_bucket_public_access_block" "this" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
+
+resource "aws_s3_bucket_notification" "eventbridge" {
+  for_each = var.buckets_eventbridge_enabled
+
+  bucket      = aws_s3_bucket.this[each.key].id
+  eventbridge = true
+}
