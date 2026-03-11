@@ -39,6 +39,11 @@ jobs:
                 terraform -chdir="$dir" test
               done
 
+      - name: Python Setup and Testing
+        uses: ./.github/actions/python
+        with:
+          python_version: '3.12'
+
       - name: Stop and Delete LocalStack Container
         if: always()
         run: docker compose down
