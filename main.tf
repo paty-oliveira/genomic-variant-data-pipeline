@@ -15,7 +15,9 @@ module "ingestion" {
 }
 
 module "processing" {
-  source      = "./modules/processing"
-  environment = var.environment
-  raw_bucket  = "${var.environment}-clinvar-raw"
+  count               = var.enable_processing ? 1 : 0
+  source              = "./modules/processing"
+  environment         = var.environment
+  raw_bucket          = "${var.environment}-clinvar-raw"
+  glue_scripts_bucket = "${var.environment}-clinvar-glue-scripts"
 }

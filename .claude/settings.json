@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(terraform version)",
+      "Bash(code --list-extensions)",
+      "Bash(code --list-extensions --show-versions)"
+    ]
+  }
+}

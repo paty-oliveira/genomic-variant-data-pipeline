@@ -20,4 +20,5 @@ EOF
 inputs = {
   environment         = "prod"
   aws_skip_validation = false
+  enable_processing   = true
 }

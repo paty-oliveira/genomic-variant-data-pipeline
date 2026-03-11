@@ -28,3 +28,9 @@ variable "aws_skip_validation" {
   type        = bool
   default     = true
 }
+
+variable "enable_processing" {
+  description = "Whether to deploy the Glue processing infrastructure. Disabled in dev (not supported by LocalStack free tier)."
+  type        = bool
+  default     = false
+}

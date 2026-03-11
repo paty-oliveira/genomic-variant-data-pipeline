@@ -29,5 +29,6 @@ provider "aws" {
     scheduler      = var.aws_endpoint_url
     sts            = var.aws_endpoint_url
     sqs            = var.aws_endpoint_url
+    events         = var.aws_endpoint_url
   }
 }
