@@ -49,8 +49,26 @@ run "valid_eventbridge_target" {
     target          = aws_glue_job.this
     override_during = plan
     values = {
-      arn  = "arn:aws:glue:eu-central-1:000000000000:job/development-processing-service"
-      name = "development-processing-service"
+      arn  = "arn:aws:glue:eu-central-1:000000000000:job/development-processing-service-job"
+      name = "development-processing-service-job"
+    }
+  }
+
+  override_resource {
+    target          = aws_glue_workflow.this
+    override_during = plan
+    values = {
+      arn  = "arn:aws:glue:eu-central-1:000000000000:workflow/development-processing-service-workflow"
+      name = "development-processing-service-workflow"
+    }
+  }
+
+  override_resource {
+    target          = aws_glue_trigger.this
+    override_during = plan
+    values = {
+      arn  = "arn:aws:glue:eu-central-1:000000000000:trigger/development-processing-service-trigger"
+      name = "development-processing-service-trigger"
     }
   }
 
@@ -78,13 +96,55 @@ run "valid_eventbridge_target" {
   }
 
   assert {
-    condition     = aws_cloudwatch_event_target.this.arn == "arn:aws:glue:eu-central-1:000000000000:job/development-processing-service"
-    error_message = "EventBridge target ARN must point to the Glue job"
+    condition     = aws_cloudwatch_event_target.this.arn == "arn:aws:glue:eu-central-1:000000000000:workflow/development-processing-service-workflow"
+    error_message = "EventBridge target ARN must point to the Glue workflow, not the job directly"
   }
 
   assert {
     condition     = aws_cloudwatch_event_target.this.role_arn == "arn:aws:iam::000000000000:role/processing-service-eventbridge"
     error_message = "EventBridge target must use the eventbridge execution role"
+  }
+}
+
+run "valid_glue_workflow" {
+  command = plan
+
+  assert {
+    condition     = aws_glue_workflow.this.name == "${var.environment}-processing-service-workflow"
+    error_message = "Glue workflow name must follow {environment}-processing-service-workflow convention"
+  }
+}
+
+run "valid_glue_trigger" {
+  command = plan
+
+  override_resource {
+    target          = aws_glue_job.this
+    override_during = plan
+    values = {
+      arn  = "arn:aws:glue:eu-central-1:000000000000:job/development-processing-service-job"
+      name = "development-processing-service-job"
+    }
+  }
+
+  assert {
+    condition     = aws_glue_trigger.this.name == "${var.environment}-processing-service-trigger"
+    error_message = "Glue trigger name must follow {environment}-processing-service-trigger convention"
+  }
+
+  assert {
+    condition     = aws_glue_trigger.this.type == "ON_DEMAND"
+    error_message = "Glue trigger must be ON_DEMAND so EventBridge controls execution timing"
+  }
+
+  assert {
+    condition     = aws_glue_trigger.this.workflow_name == aws_glue_workflow.this.name
+    error_message = "Glue trigger must belong to the processing workflow"
+  }
+
+  assert {
+    condition     = aws_glue_trigger.this.actions[0].job_name == aws_glue_job.this.name
+    error_message = "Glue trigger must invoke the processing Glue job"
   }
 }
 
@@ -104,18 +164,36 @@ run "valid_eventbridge_policy" {
     target          = aws_glue_job.this
     override_during = plan
     values = {
-      arn  = "arn:aws:glue:eu-central-1:000000000000:job/development-processing-service"
-      name = "development-processing-service"
+      arn  = "arn:aws:glue:eu-central-1:000000000000:job/development-processing-service-job"
+      name = "development-processing-service-job"
+    }
+  }
+
+  override_resource {
+    target          = aws_glue_workflow.this
+    override_during = plan
+    values = {
+      arn  = "arn:aws:glue:eu-central-1:000000000000:workflow/development-processing-service-workflow"
+      name = "development-processing-service-workflow"
+    }
+  }
+
+  override_resource {
+    target          = aws_glue_trigger.this
+    override_during = plan
+    values = {
+      arn  = "arn:aws:glue:eu-central-1:000000000000:trigger/development-processing-service-trigger"
+      name = "development-processing-service-trigger"
     }
   }
 
   assert {
-    condition     = strcontains(aws_iam_role_policy.eventbridge_to_glue.policy, "glue:StartJobRun")
-    error_message = "EventBridge IAM policy must grant glue:StartJobRun"
+    condition     = strcontains(aws_iam_role_policy.eventbridge_to_glue.policy, "glue:notifyEvent")
+    error_message = "EventBridge IAM policy must grant glue:notifyEvent to trigger the Glue workflow"
   }
 
   assert {
-    condition     = strcontains(aws_iam_role_policy.eventbridge_to_glue.policy, "${var.environment}-processing-service")
-    error_message = "EventBridge IAM policy must scope glue:StartJobRun to the processing Glue job"
+    condition     = strcontains(aws_iam_role_policy.eventbridge_to_glue.policy, "${var.environment}-processing-service-workflow")
+    error_message = "EventBridge IAM policy must scope glue:notifyEvent to the processing Glue workflow"
   }
 }
