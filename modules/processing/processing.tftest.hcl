@@ -73,7 +73,7 @@ run "valid_eventbridge_target" {
   }
 
   override_resource {
-    target          = aws_iam_role.eventbridge_execution_role
+    target          = aws_iam_role.glue_job_role
     override_during = plan
     values = {
       id   = "processing-service-eventbridge"
@@ -83,10 +83,10 @@ run "valid_eventbridge_target" {
   }
 
   override_resource {
-    target          = aws_iam_role_policy.eventbridge_to_glue
+    target          = aws_iam_role_policy.glue_eventbridge_access
     override_during = plan
     values = {
-      id = "processing-service-eventbridge:eventbridge_to_glue"
+      id = "processing-service-eventbridge:glue_eventbridge_access"
     }
   }
 
@@ -133,7 +133,7 @@ run "valid_glue_trigger" {
   }
 
   assert {
-    condition     = aws_glue_trigger.this.type == "ON_DEMAND"
+    condition     = aws_glue_trigger.this.type == "EVENT"
     error_message = "Glue trigger must be ON_DEMAND so EventBridge controls execution timing"
   }
 
@@ -152,7 +152,7 @@ run "valid_eventbridge_role" {
   command = plan
 
   assert {
-    condition     = jsondecode(aws_iam_role.eventbridge_execution_role.assume_role_policy).Statement[0].Principal.Service == "events.amazonaws.com"
+    condition     = jsondecode(aws_iam_role.glue_job_role.assume_role_policy).Statement[0].Principal.Service == "events.amazonaws.com"
     error_message = "EventBridge IAM role must trust events.amazonaws.com"
   }
 }
@@ -188,12 +188,52 @@ run "valid_eventbridge_policy" {
   }
 
   assert {
-    condition     = strcontains(aws_iam_role_policy.eventbridge_to_glue.policy, "glue:notifyEvent")
+    condition     = strcontains(aws_iam_role_policy.glue_eventbridge_access.policy, "glue:notifyEvent")
     error_message = "EventBridge IAM policy must grant glue:notifyEvent to trigger the Glue workflow"
   }
 
   assert {
-    condition     = strcontains(aws_iam_role_policy.eventbridge_to_glue.policy, "${var.environment}-processing-service-workflow")
+    condition     = strcontains(aws_iam_role_policy.glue_eventbridge_access.policy, "${var.environment}-processing-service-workflow")
     error_message = "EventBridge IAM policy must scope glue:notifyEvent to the processing Glue workflow"
+  }
+}
+
+
+run "valid_glue_s3_policy" {
+  command = plan
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_s3_access.policy, "s3:GetObject")
+    error_message = "Glue S3 policy must grant s3:GetObject"
+  }
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_s3_access.policy, "s3:PutObject")
+    error_message = "Glue S3 policy must grant s3:PutObject"
+  }
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_s3_access.policy, "s3:ListBucket")
+    error_message = "Glue S3 policy must grant s3:ListBucket"
+  }
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_s3_access.policy, var.raw_bucket)
+    error_message = "Glue S3 policy must be scoped to the raw bucket"
+  }
+
+}
+
+run "valid_glue_job_script_to_s3" {
+  command = plan
+
+  assert {
+    condition     = aws_s3_object.transform_script.bucket == "${var.environment}-${var.glue_scripts_bucket}"
+    error_message = "The AWS Glue script must be stored on the correct S3 bucket."
+  }
+
+  assert {
+    condition     = strcontains(aws_s3_object.transform_script.key, "transform.py")
+    error_message = "The S3 bucket must have the Python Glue script."
   }
 }

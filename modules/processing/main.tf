@@ -13,17 +13,7 @@ terraform {
   }
 }
 
-resource "aws_glue_job" "this" {
-  #checkov:skip=CKV_AWS_195: Temporary skiping the rule until the processing module is totally implemented TODO: REMOVE IT
-  name     = "${var.environment}-${local.service_name}-job"
-  role_arn = aws_iam_role.eventbridge_execution_role.arn
-
-  command {
-    script_location = "s3://${var.glue_scripts_bucket}/transform.py"
-  }
-}
-
-resource "aws_iam_role" "eventbridge_execution_role" {
+resource "aws_iam_role" "glue_job_role" {
   name = "${local.service_name}-eventbridge"
 
   assume_role_policy = jsonencode({
@@ -36,22 +26,8 @@ resource "aws_iam_role" "eventbridge_execution_role" {
   })
 }
 
-resource "aws_glue_workflow" "this" {
-  name = "${var.environment}-${local.service_name}-workflow"
-}
-
-resource "aws_glue_trigger" "this" {
-  name          = "${var.environment}-${local.service_name}-trigger"
-  type          = "ON_DEMAND"
-  workflow_name = aws_glue_workflow.this.name
-
-  actions {
-    job_name = aws_glue_job.this.name
-  }
-}
-
-resource "aws_iam_role_policy" "eventbridge_to_glue" {
-  role = aws_iam_role.eventbridge_execution_role.id
+resource "aws_iam_role_policy" "glue_eventbridge_access" {
+  role = aws_iam_role.glue_job_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -61,6 +37,63 @@ resource "aws_iam_role_policy" "eventbridge_to_glue" {
       Resource = aws_glue_workflow.this.arn
     }]
   })
+}
+
+resource "aws_iam_role_policy" "glue_s3_access" {
+  role = aws_iam_role.glue_job_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
+      Resource = [
+        "arn:aws:s3:::${var.environment}-${var.raw_bucket}",
+        "arn:aws:s3:::${var.environment}-${var.raw_bucket}/*",
+      ]
+    }]
+  })
+}
+
+resource "aws_s3_object" "transform_script" {
+  bucket = "${var.environment}-${var.glue_scripts_bucket}"
+  key    = "scripts/transform.py"
+  source = "${path.module}/scripts/transform.py"
+  etag   = filemd5("${path.module}/scripts/transform.py")
+}
+
+resource "aws_glue_job" "this" {
+  #checkov:skip=CKV_AWS_195: Temporary skiping the rule until the processing module is totally implemented TODO: REMOVE IT
+  depends_on = [aws_s3_object.transform_script]
+
+  name     = "${var.environment}-${local.service_name}-job"
+  role_arn = aws_iam_role.glue_job_role.arn
+
+  command {
+    name            = "GlueTransform"
+    script_location = "s3://${var.environment}-${var.glue_scripts_bucket}/transform.py"
+    python_version  = "3"
+  }
+
+  glue_version      = "5.0"
+  max_retries       = 1
+  timeout           = 7200
+  number_of_workers = 5
+  worker_type       = "G.2X"
+}
+
+resource "aws_glue_workflow" "this" {
+  name = "${var.environment}-${local.service_name}-workflow"
+}
+
+resource "aws_glue_trigger" "this" {
+  name          = "${var.environment}-${local.service_name}-trigger"
+  type          = "EVENT"
+  workflow_name = aws_glue_workflow.this.name
+
+  actions {
+    job_name = aws_glue_job.this.name
+  }
 }
 
 resource "aws_cloudwatch_event_rule" "this" {
@@ -81,5 +114,5 @@ resource "aws_cloudwatch_event_rule" "this" {
 resource "aws_cloudwatch_event_target" "this" {
   rule     = aws_cloudwatch_event_rule.this.name
   arn      = aws_glue_workflow.this.arn
-  role_arn = aws_iam_role.eventbridge_execution_role.arn
+  role_arn = aws_iam_role.glue_job_role.arn
 }
