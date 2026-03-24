@@ -73,7 +73,7 @@ run "valid_eventbridge_target" {
   }
 
   override_resource {
-    target          = aws_iam_role.eventbridge_execution_role
+    target          = aws_iam_role.glue_execution_role
     override_during = plan
     values = {
       id   = "processing-service-eventbridge"
@@ -152,7 +152,7 @@ run "valid_eventbridge_role" {
   command = plan
 
   assert {
-    condition     = jsondecode(aws_iam_role.eventbridge_execution_role.assume_role_policy).Statement[0].Principal.Service == "events.amazonaws.com"
+    condition     = jsondecode(aws_iam_role.glue_execution_role.assume_role_policy).Statement[0].Principal.Service == "events.amazonaws.com"
     error_message = "EventBridge IAM role must trust events.amazonaws.com"
   }
 }

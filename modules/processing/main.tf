@@ -13,7 +13,12 @@ terraform {
   }
 }
 
-resource "aws_iam_role" "eventbridge_execution_role" {
+moved {
+  from = aws_iam_role.eventbridge_execution_role
+  to   = aws_iam_role.glue_execution_role
+}
+
+resource "aws_iam_role" "glue_execution_role" {
   name = "${local.service_name}-eventbridge"
 
   assume_role_policy = jsonencode({
@@ -27,7 +32,7 @@ resource "aws_iam_role" "eventbridge_execution_role" {
 }
 
 resource "aws_iam_role_policy" "glue_eventbridge_access" {
-  role = aws_iam_role.eventbridge_execution_role.id
+  role = aws_iam_role.glue_execution_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -40,7 +45,7 @@ resource "aws_iam_role_policy" "glue_eventbridge_access" {
 }
 
 resource "aws_iam_role_policy" "glue_s3_access" {
-  role = aws_iam_role.eventbridge_execution_role.id
+  role = aws_iam_role.glue_execution_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -67,7 +72,7 @@ resource "aws_glue_job" "this" {
   depends_on = [aws_s3_object.transform_script]
 
   name     = "${var.environment}-${local.service_name}-job"
-  role_arn = aws_iam_role.eventbridge_execution_role.arn
+  role_arn = aws_iam_role.glue_execution_role.arn
 
   command {
     name            = "GlueTransform"
@@ -114,5 +119,5 @@ resource "aws_cloudwatch_event_rule" "this" {
 resource "aws_cloudwatch_event_target" "this" {
   rule     = aws_cloudwatch_event_rule.this.name
   arn      = aws_glue_workflow.this.arn
-  role_arn = aws_iam_role.eventbridge_execution_role.arn
+  role_arn = aws_iam_role.glue_execution_role.arn
 }
