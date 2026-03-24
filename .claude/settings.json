@@ -5,7 +5,8 @@
       "Bash(code --list-extensions)",
       "Bash(code --list-extensions --show-versions)",
       "Bash(gh run:*)",
-      "Bash(brew install:*)"
+      "Bash(brew install:*)",
+      "Bash(gh api:*)"
     ]
   }
 }
