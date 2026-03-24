@@ -3,6 +3,7 @@ variable "environment" {
   type        = string
 }
 
+
 variable "target_bucket" {
   description = "Name of the S3 bucket where downloaded files will be stored"
   type        = string

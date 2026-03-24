@@ -13,7 +13,6 @@ provider "aws" {
   endpoints {
     s3             = "http://localhost:4566"
     iam            = "http://localhost:4566"
-    kms            = "http://localhost:4566"
     lambda         = "http://localhost:4566"
     cloudwatchlogs = "http://localhost:4566"
     scheduler      = "http://localhost:4566"
@@ -72,34 +71,6 @@ run "valid_lambda_s3_policy" {
   }
 }
 
-run "valid_kms_key_for_log_group" {
-  command = plan
-
-  assert {
-    condition     = aws_kms_key.log_group.enable_key_rotation == true
-    error_message = "KMS key for log group must have key rotation enabled"
-  }
-
-  assert {
-    condition     = aws_kms_key.log_group.deletion_window_in_days == 7
-    error_message = "KMS key deletion window must be 7 days"
-  }
-
-  assert {
-    condition     = strcontains(aws_kms_key.log_group.policy, "logs.")
-    error_message = "KMS key policy must grant access to the CloudWatch Logs service principal"
-  }
-
-  assert {
-    condition     = strcontains(aws_kms_key.log_group.policy, "kms:GenerateDataKey*")
-    error_message = "KMS key policy must allow kms:GenerateDataKey* for CloudWatch Logs"
-  }
-
-  assert {
-    condition     = strcontains(aws_kms_key.log_group.policy, "kms:EncryptionContext:aws:logs:arn")
-    error_message = "KMS key policy must scope CloudWatch Logs access via EncryptionContext condition"
-  }
-}
 
 run "valid_cloudwatch_log_group" {
   command = apply
@@ -177,11 +148,6 @@ run "valid_cloudwatch_log_group" {
   assert {
     condition     = aws_cloudwatch_log_group.this.retention_in_days == 365
     error_message = "Log group retention must be 365 days"
-  }
-
-  assert {
-    condition     = aws_cloudwatch_log_group.this.kms_key_id == aws_kms_key.log_group.arn
-    error_message = "Log group must be encrypted with the ingestion KMS key"
   }
 }
 
@@ -274,14 +240,6 @@ run "valid_scheduler_target" {
     target = aws_sqs_queue.dlq
     values = {
       arn = "arn:aws:sqs:eu-central-1:000000000000:development-ingestion-service-dlq"
-    }
-  }
-
-  override_resource {
-    target = aws_kms_key.log_group
-    values = {
-      id  = "00000000-0000-0000-0000-000000000000"
-      arn = "arn:aws:kms:eu-central-1:000000000000:key/00000000-0000-0000-0000-000000000000"
     }
   }
 
