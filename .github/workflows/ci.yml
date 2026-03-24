@@ -7,29 +7,18 @@ env:
   TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_KEY }}
   TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
   TF_VAR_environment: ${{ vars.ENVIRONMENT }}
+  TF_VAR_aws_endpoint_url: ${{ vars.AWS_ENDPOINT_URL}}
 
 jobs:
   build-and-test-infrastructure:
     runs-on: ubuntu-latest
     environment: DEV
-    env:
-      TF_VAR_aws_endpoint_url: "http://127.0.0.1:4566"
-
     steps:
       - uses: actions/checkout@v5
 
       - name: Build and Start LocalStack Container
         run: |
-          docker compose up -d
-
-      - name: Verify LocalStack is Ready
-        run: |
-          echo "=== Docker containers ==="
-          docker ps -a
-          echo "=== Waiting for LocalStack ==="
-          curl --retry 15 --retry-connrefused --retry-delay 2 --retry-max-time 60 -sf http://127.0.0.1:4566/_localstack/health && echo "LocalStack ready" || echo "LocalStack NOT ready"
-          echo "=== LocalStack logs ==="
-          docker logs localstack-main 2>&1 | tail -30
+          docker compose up -d --wait
 
       - name: Terraform Setup and Build
         uses: ./.github/actions/terraform
