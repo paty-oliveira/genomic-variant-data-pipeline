@@ -3,7 +3,9 @@
     "allow": [
       "Bash(terraform version)",
       "Bash(code --list-extensions)",
-      "Bash(code --list-extensions --show-versions)"
+      "Bash(code --list-extensions --show-versions)",
+      "Bash(gh run:*)",
+      "Bash(brew install:*)"
     ]
   }
 }
