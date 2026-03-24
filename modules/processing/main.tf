@@ -13,11 +13,6 @@ terraform {
   }
 }
 
-moved {
-  from = aws_iam_role.eventbridge_execution_role
-  to   = aws_iam_role.glue_execution_role
-}
-
 resource "aws_iam_role" "glue_execution_role" {
   name = "${local.service_name}-eventbridge"
 
