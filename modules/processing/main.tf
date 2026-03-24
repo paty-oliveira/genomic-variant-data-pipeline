@@ -56,7 +56,7 @@ resource "aws_iam_role_policy" "glue_s3_access" {
 }
 
 resource "aws_s3_object" "transform_script" {
-  bucket = "${var.environment}-${var.glue_scripts_bucket}"
+  bucket = var.glue_scripts_bucket
   key    = "scripts/transform.py"
   source = "${path.module}/scripts/transform.py"
   etag   = filemd5("${path.module}/scripts/transform.py")
@@ -71,7 +71,7 @@ resource "aws_glue_job" "this" {
 
   command {
     name            = "GlueTransform"
-    script_location = "s3://${var.environment}-${var.glue_scripts_bucket}/transform.py"
+    script_location = "s3://${var.glue_scripts_bucket}/transform.py"
     python_version  = "3"
   }
 
