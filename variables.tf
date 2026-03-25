@@ -34,3 +34,9 @@ variable "enable_processing" {
   type        = bool
   default     = false
 }
+
+variable "enable_analytics" {
+  description = "Whether to deploy the Athena analytics infrastructure. Disabled in dev (not supported by LocalStack free tier)."
+  type        = bool
+  default     = false
+}

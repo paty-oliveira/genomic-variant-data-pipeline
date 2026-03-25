@@ -23,3 +23,12 @@ module "processing" {
   transformed_bucket  = "${var.environment}-clinvar-transformed"
   glue_database_name  = "genomics"
 }
+
+module "analytics" {
+  count                 = var.enable_analytics ? 1 : 0
+  source                = "./modules/analytics"
+  environment           = var.environment
+  athena_results_bucket = "${var.environment}-clinvar-athena-results"
+  transformed_bucket    = "${var.environment}-clinvar-transformed"
+  glue_database_name    = "genomics"
+}
