@@ -6,6 +6,8 @@ variables {
   environment         = "development"
   raw_bucket          = "development-clinvar-raw"
   glue_scripts_bucket = "development-clinvar-glue-scripts"
+  transformed_bucket  = "development-clinvar-transformed"
+  glue_database_name  = "genomics"
 }
 
 
@@ -222,6 +224,109 @@ run "valid_glue_s3_policy" {
     error_message = "Glue S3 policy must be scoped to the raw bucket"
   }
 
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_s3_access.policy, var.transformed_bucket)
+    error_message = "Glue S3 policy must be scoped to the transformed bucket"
+  }
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_s3_access.policy, "s3:DeleteObject")
+    error_message = "Glue S3 policy must grant s3:DeleteObject on the transformed bucket for Iceberg compaction"
+  }
+
+}
+
+run "valid_eventbridge_target_input_transformer" {
+  command = plan
+
+  override_resource {
+    target = aws_glue_workflow.this
+    values = {
+      arn  = "arn:aws:glue:eu-central-1:000000000000:workflow/development-processing-service-workflow"
+      name = "development-processing-service-workflow"
+    }
+  }
+
+  override_resource {
+    target = aws_iam_role.glue_execution_role
+    values = {
+      id   = "processing-service-eventbridge"
+      arn  = "arn:aws:iam::000000000000:role/processing-service-eventbridge"
+      name = "processing-service-eventbridge"
+    }
+  }
+
+  assert {
+    condition     = aws_cloudwatch_event_target.this.input_transformer[0].input_paths["bucket_name"] == "$.detail.bucket.name"
+    error_message = "Input transformer must extract bucket name from the S3 event detail"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_event_target.this.input_transformer[0].input_paths["object_key"] == "$.detail.object.key"
+    error_message = "Input transformer must extract object key from the S3 event detail"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_event_target.this.input_transformer[0].input_paths["event_time"] == "$.time"
+    error_message = "Input transformer must extract event time from the EventBridge envelope"
+  }
+
+  assert {
+    condition     = strcontains(aws_cloudwatch_event_target.this.input_transformer[0].input_template, "--bucket_name")
+    error_message = "Input transformer template must map bucket_name as a Glue job argument"
+  }
+
+  assert {
+    condition     = strcontains(aws_cloudwatch_event_target.this.input_transformer[0].input_template, "--object_key")
+    error_message = "Input transformer template must map object_key as a Glue job argument"
+  }
+
+  assert {
+    condition     = strcontains(aws_cloudwatch_event_target.this.input_transformer[0].input_template, "--event_time")
+    error_message = "Input transformer template must map event_time as a Glue job argument"
+  }
+}
+
+run "valid_glue_catalog_database" {
+  command = plan
+
+  assert {
+    condition     = aws_glue_catalog_database.this.name == var.glue_database_name
+    error_message = "Glue catalog database name must match the glue_database_name variable"
+  }
+}
+
+run "valid_glue_job_arguments" {
+  command = plan
+
+  assert {
+    condition     = aws_glue_job.this.default_arguments["--datalake-formats"] == "iceberg"
+    error_message = "Glue job must enable Iceberg via --datalake-formats"
+  }
+
+  assert {
+    condition     = aws_glue_job.this.default_arguments["--transformed_bucket"] == var.transformed_bucket
+    error_message = "Glue job must pass the transformed bucket as an argument"
+  }
+}
+
+run "valid_glue_catalog_access_policy" {
+  command = plan
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_catalog_access.policy, "glue:CreateTable")
+    error_message = "Glue catalog policy must grant glue:CreateTable"
+  }
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_catalog_access.policy, "glue:GetTable")
+    error_message = "Glue catalog policy must grant glue:GetTable"
+  }
+
+  assert {
+    condition     = strcontains(aws_iam_role_policy.glue_catalog_access.policy, var.glue_database_name)
+    error_message = "Glue catalog policy must be scoped to the configured database"
+  }
 }
 
 run "valid_glue_job_script_to_s3" {

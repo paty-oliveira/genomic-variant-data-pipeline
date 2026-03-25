@@ -20,4 +20,6 @@ module "processing" {
   environment         = var.environment
   raw_bucket          = "${var.environment}-clinvar-raw"
   glue_scripts_bucket = "${var.environment}-clinvar-glue-scripts"
+  transformed_bucket  = "${var.environment}-clinvar-transformed"
+  glue_database_name  = "genomics"
 }

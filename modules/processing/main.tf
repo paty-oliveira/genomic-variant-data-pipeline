@@ -39,20 +39,59 @@ resource "aws_iam_role_policy" "glue_eventbridge_access" {
   })
 }
 
-resource "aws_iam_role_policy" "glue_s3_access" {
+resource "aws_iam_role_policy" "glue_catalog_access" {
   role = aws_iam_role.glue_execution_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect = "Allow"
-      Action = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
+      Action = [
+        "glue:GetDatabase",
+        "glue:GetTable",
+        "glue:CreateTable",
+        "glue:UpdateTable",
+        "glue:DeleteTable",
+        "glue:GetPartitions",
+        "glue:BatchCreatePartition",
+      ]
       Resource = [
-        "arn:aws:s3:::${var.environment}-${var.raw_bucket}",
-        "arn:aws:s3:::${var.environment}-${var.raw_bucket}/*",
+        "arn:aws:glue:*:*:catalog",
+        "arn:aws:glue:*:*:database/${aws_glue_catalog_database.this.name}",
+        "arn:aws:glue:*:*:table/${aws_glue_catalog_database.this.name}/*",
       ]
     }]
   })
+}
+
+resource "aws_iam_role_policy" "glue_s3_access" {
+  role = aws_iam_role.glue_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          "arn:aws:s3:::${var.raw_bucket}",
+          "arn:aws:s3:::${var.raw_bucket}/*",
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+        Resource = [
+          "arn:aws:s3:::${var.transformed_bucket}",
+          "arn:aws:s3:::${var.transformed_bucket}/*",
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_glue_catalog_database" "this" {
+  name = var.glue_database_name
 }
 
 resource "aws_s3_object" "transform_script" {
@@ -73,6 +112,11 @@ resource "aws_glue_job" "this" {
     name            = "GlueTransform"
     script_location = "s3://${var.glue_scripts_bucket}/transform.py"
     python_version  = "3"
+  }
+
+  default_arguments = {
+    "--datalake-formats"   = "iceberg"
+    "--transformed_bucket" = var.transformed_bucket
   }
 
   glue_version      = "5.0"
@@ -115,4 +159,13 @@ resource "aws_cloudwatch_event_target" "this" {
   rule     = aws_cloudwatch_event_rule.this.name
   arn      = aws_glue_workflow.this.arn
   role_arn = aws_iam_role.glue_execution_role.arn
+
+  input_transformer {
+    input_paths = {
+      bucket_name = "$.detail.bucket.name"
+      object_key  = "$.detail.object.key"
+      event_time  = "$.time"
+    }
+    input_template = "{\"--bucket_name\": \"<bucket_name>\", \"--object_key\": \"<object_key>\", \"--event_time\": \"<event_time>\"}"
+  }
 }
