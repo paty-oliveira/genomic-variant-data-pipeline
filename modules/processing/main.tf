@@ -31,6 +31,53 @@ resource "aws_glue_catalog_database" "this" {
   name = var.glue_database_name
 }
 
+resource "aws_kms_key" "log_group" {
+  description             = "KMS key for ${local.service_name} CloudWatch log group"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow CloudWatch Logs"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.${data.aws_region.current.region}.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+        Condition = {
+          ArnLike = {
+            "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:*"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_log_group" "this" {
+  name              = "/aws/glue/${var.environment}-${local.service_name}"
+  retention_in_days = 366
+  kms_key_id        = aws_kms_key.log_group.arn
+}
+
 resource "aws_glue_job" "this" {
   #checkov:skip=CKV_AWS_195: Temporary skiping the rule until the processing module is totally implemented TODO: REMOVE IT
   depends_on = [aws_s3_object.transform_script]
@@ -45,8 +92,12 @@ resource "aws_glue_job" "this" {
   }
 
   default_arguments = {
-    "--datalake-formats"   = "iceberg"
-    "--transformed_bucket" = var.transformed_bucket
+    "--datalake-formats"                 = "iceberg"
+    "--transformed_bucket"               = var.transformed_bucket
+    "--continuous-log-logGroup"          = aws_cloudwatch_log_group.this.name
+    "--enable-continuous-cloudwatch-log" = "true"
+    "--enable-continuous-log-filter"     = "true"
+    "--enable-metrics"                   = ""
   }
 
   glue_version      = "5.0"

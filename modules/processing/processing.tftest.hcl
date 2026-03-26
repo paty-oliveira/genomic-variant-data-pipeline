@@ -296,6 +296,44 @@ run "valid_glue_catalog_database" {
   }
 }
 
+run "valid_cloudwatch_log_group" {
+  command = plan
+
+  assert {
+    condition     = aws_cloudwatch_log_group.this.name == "/aws/glue/${var.environment}-processing-service"
+    error_message = "CloudWatch log group name must follow /aws/glue/{environment}-processing-service convention"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_group.this.retention_in_days == 15
+    error_message = "CloudWatch log group retention must be set to 15 days"
+  }
+
+  assert {
+    condition     = aws_cloudwatch_log_group.this.kms_key_id == aws_kms_key.log_group.arn
+    error_message = "CloudWatch log group must be encrypted with the provisioned KMS key"
+  }
+}
+
+run "valid_cloudwatch_kms_key" {
+  command = plan
+
+  assert {
+    condition     = aws_kms_key.log_group.enable_key_rotation == true
+    error_message = "KMS key for the log group must have key rotation enabled"
+  }
+
+  assert {
+    condition     = aws_kms_key.log_group.deletion_window_in_days == 7
+    error_message = "KMS key deletion window must be set to 7 days"
+  }
+
+  assert {
+    condition     = strcontains(aws_kms_key.log_group.policy, "logs.amazonaws.com")
+    error_message = "KMS key policy must grant CloudWatch Logs service access to encrypt/decrypt"
+  }
+}
+
 run "valid_glue_job_arguments" {
   command = plan
 
@@ -307,6 +345,21 @@ run "valid_glue_job_arguments" {
   assert {
     condition     = aws_glue_job.this.default_arguments["--transformed_bucket"] == var.transformed_bucket
     error_message = "Glue job must pass the transformed bucket as an argument"
+  }
+
+  assert {
+    condition     = aws_glue_job.this.default_arguments["--enable-continuous-cloudwatch-log"] == "true"
+    error_message = "Glue job must enable continuous CloudWatch logging"
+  }
+
+  assert {
+    condition     = aws_glue_job.this.default_arguments["--enable-continuous-log-filter"] == "true"
+    error_message = "Glue job must enable continuous log filter to suppress driver log noise"
+  }
+
+  assert {
+    condition     = aws_glue_job.this.default_arguments["--continuous-log-logGroup"] == aws_cloudwatch_log_group.this.name
+    error_message = "Glue job must send logs to the provisioned CloudWatch log group"
   }
 }
 
