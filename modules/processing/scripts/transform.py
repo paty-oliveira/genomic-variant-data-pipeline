@@ -101,7 +101,17 @@ def main():
         PARTITIONED BY (classification)
     """)
 
-    variants_df.writeTo("glue_catalog.genomics.clinvar_vcv").append()
-
+    # Creates a virtual table in Spark SQL catalog
+    # Spark SQL engine can see it as incoming table
+    variants_df.createOrReplace("incoming")
+    spark_session.sql("""
+        MERGE INTO glue_catalog.genomics.clinvar_vcv AS target
+        USING incoming AS source
+        ON target.variation_id = source.variation_id
+        WHEN MATCHED AND source.date_last_updated > target.date_last_updated
+            THEN UPDATE SET *
+        WHEN NOT MATCHED
+            THEN INSERT *
+    """)
 
 main()
