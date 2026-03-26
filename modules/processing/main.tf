@@ -74,7 +74,7 @@ resource "aws_kms_key" "log_group" {
 
 resource "aws_cloudwatch_log_group" "this" {
   name              = "/aws/glue/${var.environment}-${local.service_name}"
-  retention_in_days = 366
+  retention_in_days = 365
   kms_key_id        = aws_kms_key.log_group.arn
 }
 

@@ -13,8 +13,8 @@ run "valid_athena_workgroup_name" {
   command = plan
 
   assert {
-    condition     = aws_athena_workgroup.this.name == "${var.environment}-analytics-service"
-    error_message = "Athena workgroup name must follow {environment}-analytics-service convention"
+    condition     = aws_athena_workgroup.this.name == "${var.environment}-data-lake-service"
+    error_message = "Athena workgroup name must follow {environment}-data-lake-service convention"
   }
 }
 

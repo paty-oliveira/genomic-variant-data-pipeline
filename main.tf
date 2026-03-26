@@ -24,9 +24,9 @@ module "processing" {
   glue_database_name  = "genomics"
 }
 
-module "analytics" {
+module "data_lake" {
   count                 = var.enable_analytics ? 1 : 0
-  source                = "./modules/analytics"
+  source                = "./modules/analytics/data_lake"
   environment           = var.environment
   athena_results_bucket = "${var.environment}-clinvar-athena-results"
   transformed_bucket    = "${var.environment}-clinvar-transformed"

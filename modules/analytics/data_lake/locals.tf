@@ -1,3 +1,3 @@
 locals {
-  service_name = "analytics-service"
+  service_name = "data-lake-service"
 }

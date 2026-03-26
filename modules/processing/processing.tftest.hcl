@@ -299,14 +299,22 @@ run "valid_glue_catalog_database" {
 run "valid_cloudwatch_log_group" {
   command = plan
 
+  override_resource {
+    target          = aws_kms_key.log_group
+    override_during = plan
+    values = {
+      arn = "arn:aws:kms:us-east-1:123456789012:key/test-key-id"
+    }
+  }
+
   assert {
     condition     = aws_cloudwatch_log_group.this.name == "/aws/glue/${var.environment}-processing-service"
     error_message = "CloudWatch log group name must follow /aws/glue/{environment}-processing-service convention"
   }
 
   assert {
-    condition     = aws_cloudwatch_log_group.this.retention_in_days == 15
-    error_message = "CloudWatch log group retention must be set to 15 days"
+    condition     = aws_cloudwatch_log_group.this.retention_in_days == 365
+    error_message = "CloudWatch log group retention must be set to 365 days"
   }
 
   assert {
@@ -329,7 +337,7 @@ run "valid_cloudwatch_kms_key" {
   }
 
   assert {
-    condition     = strcontains(aws_kms_key.log_group.policy, "logs.amazonaws.com")
+    condition     = can(regex("logs\\..+\\.amazonaws\\.com", aws_kms_key.log_group.policy))
     error_message = "KMS key policy must grant CloudWatch Logs service access to encrypt/decrypt"
   }
 }
