@@ -27,8 +27,13 @@ resource "aws_iam_role_policy" "lambda_to_s3" {
     Version = "2012-10-17"
     Statement = [{
       Effect   = "Allow"
-      Action   = ["s3:GetObject", "s3:PutObject"]
+      Action   = ["s3:GetObject", "s3:PutObject", "s3:HeadObject"]
       Resource = "arn:aws:s3:::${var.target_bucket}/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = "arn:aws:s3:::${var.target_bucket}"
     }]
   })
 }
